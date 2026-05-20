@@ -2,270 +2,857 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Convertisseur PNG/JPEG → WebP (≤ 115 Ko)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Convertisseur PNG / JPEG → WebP</title>
 <style>
   :root {
-    --bg: #0f172a;
-    --panel: #1e293b;
-    --panel-2: #273449;
-    --text: #e2e8f0;
-    --muted: #94a3b8;
-    --accent: #38bdf8;
-    --accent-2: #0ea5e9;
-    --ok: #22c55e;
-    --warn: #f59e0b;
-    --err: #ef4444;
-    --border: #334155;
+    --bg-page: #F4F4F2;
+    --bg-card: #FFFFFF;
+    --bg-soft: #E5E5E2;
+    --bg-medium: #D6D6D2;
+    --bg-strong: #ABABA8;
+    --bg-dark: #4A4A48;
+    --text-primary: #1A1A1A;
+    --text-secondary: #6B6B6B;
+    --text-muted: #999996;
+    --border: #E0E0DC;
+    --border-strong: #C9C9C4;
+    --accent: #23A96A;
+    --accent-hover: #075033;
+    --accent-soft: rgba(35, 169, 106, 0.08);
+    --accent-glow: rgba(35, 169, 106, 0.25);
+    --warn: #C97A2B;
+    --warn-soft: rgba(201, 122, 43, 0.1);
+    --error: #B00020;
+    --radius: 1px;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08);
   }
+
   * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 32px 16px;
+
+  /* ===== ANIMATIONS ===== */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
   }
-  .container { max-width: 960px; margin: 0 auto; }
-  h1 { margin: 0 0 4px; font-size: 24px; }
-  .subtitle { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pulseDot {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(35, 169, 106, 0.45); }
+    50% { box-shadow: 0 0 0 8px rgba(35, 169, 106, 0); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes counterPop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.4); }
+    100% { transform: scale(1); }
+  }
+  @keyframes confetti-fall {
+    0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+    100% { transform: translate(var(--cx, 0), var(--cy, 100vh)) rotate(var(--cr, 720deg)); opacity: 0; }
+  }
+  @keyframes itemSlideIn {
+    0% { opacity: 0; transform: translateX(-12px); }
+    100% { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+    50% { box-shadow: 0 0 14px 3px var(--accent-glow); }
+  }
+  @keyframes logoBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+  @keyframes stepCheck {
+    0% { transform: scale(0) rotate(-45deg); }
+    60% { transform: scale(1.3) rotate(5deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-3deg); }
+    75% { transform: rotate(3deg); }
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ===== BASE ===== */
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: var(--bg-page);
+    color: var(--text-primary);
+    line-height: 1.5;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(35, 169, 106, 0.04) 0%, transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(7, 80, 51, 0.03) 0%, transparent 40%);
+  }
+
+  .container {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    animation: fadeInUp 0.5s ease-out;
+  }
+  .logo-wrap { display: flex; align-items: center; transition: transform 0.3s ease; }
+  .logo-wrap:hover { animation: logoBounce 0.6s ease-in-out; }
+  .logo { height: 38px; width: auto; display: block; }
+  .header-meta {
+    font-size: 12px; color: var(--text-muted); text-align: right;
+    letter-spacing: 0.04em; text-transform: uppercase; font-weight: 500; white-space: nowrap;
+  }
+  .header-meta .dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); margin-right: 6px; animation: pulseDot 2s infinite;
+    vertical-align: middle;
+  }
+
+  .title-block { margin-bottom: 1.5rem; animation: fadeInUp 0.5s ease-out 0.1s both; }
+  h1 {
+    font-size: 28px; font-weight: 600; margin: 0 0 6px;
+    letter-spacing: -0.02em; color: var(--text-primary);
+  }
+  .subtitle { font-size: 15px; color: var(--text-secondary); margin: 0; }
+
+  /* ===== XP BAR ===== */
+  .xp-bar {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 1.5rem; padding: 14px 18px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: var(--shadow-sm);
+    animation: fadeInUp 0.5s ease-out 0.15s both;
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  .xp-bar:hover { box-shadow: var(--shadow-md); }
+  .xp-icon {
+    width: 36px; height: 36px; border-radius: var(--radius);
+    background: var(--accent-soft); color: var(--accent-hover);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .xp-bar.active .xp-icon {
+    background: var(--accent); color: white;
+    transform: scale(1.05) rotate(-5deg);
+  }
+  .xp-bar.complete .xp-icon { animation: wiggle 0.5s ease-in-out; }
+  .xp-track {
+    flex: 1; height: 8px; background: var(--bg-soft);
+    border-radius: var(--radius); overflow: hidden; position: relative;
+  }
+  .xp-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent) 0%, #2dd47e 100%);
+    width: 0%; transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative; border-radius: var(--radius);
+  }
+  .xp-fill::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%);
+    background-size: 200% 100%; animation: shimmer 2.5s infinite linear;
+  }
+  .xp-stats {
+    display: flex; gap: 18px; font-size: 13px;
+    color: var(--text-secondary); font-weight: 500; white-space: nowrap;
+  }
+  .xp-stats strong {
+    display: inline-block; color: var(--text-primary); font-weight: 600;
+    font-variant-numeric: tabular-nums; transition: color 0.2s;
+  }
+  .xp-stats strong.bumping { animation: counterPop 0.4s ease-out; color: var(--accent); }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.5rem;
+    margin-bottom: 1.25rem; box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+  .card:hover { box-shadow: var(--shadow-md); }
+  .card.appear-1 { animation: fadeInUp 0.5s ease-out 0.2s both; }
+  .card.appear-2 { animation: fadeInUp 0.5s ease-out 0.25s both; }
+  .card.appear-3 { animation: fadeInUp 0.5s ease-out 0.3s both; }
+
+  .card-title {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-muted);
+    margin: 0 0 16px; display: flex; align-items: center; gap: 10px;
+  }
+  .card-title-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent-hover);
+    font-size: 10px; font-weight: 700;
+    transition: all 0.3s; position: relative;
+  }
+  .card-title.complete .card-title-num { background: var(--accent); color: white; }
+  .card-title.complete .card-title-num::after {
+    content: "✓"; position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    animation: stepCheck 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .card-title.complete .card-title-num span { display: none; }
+
+  /* ===== DROP ZONE ===== */
   .drop {
     display: block;
-    border: 2px dashed var(--border);
-    border-radius: 12px;
-    padding: 48px 24px;
+    border: 2px dashed var(--border-strong);
+    border-radius: var(--radius);
+    padding: 36px 24px;
     text-align: center;
-    background: var(--panel);
+    background: var(--bg-page);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.2s ease;
   }
-  .drop:hover, .drop.dragover {
+  .drop:hover {
     border-color: var(--accent);
-    background: var(--panel-2);
+    background: var(--accent-soft);
   }
-  .drop p { margin: 0; color: var(--muted); }
-  .drop strong { color: var(--text); display: block; margin-bottom: 6px; font-size: 16px; }
+  .drop.dragover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    transform: scale(1.01);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+  .drop-icon {
+    width: 44px; height: 44px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent-hover);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.3s;
+  }
+  .drop:hover .drop-icon, .drop.dragover .drop-icon {
+    background: var(--accent); color: white;
+    transform: translateY(-3px);
+  }
+  .drop-title {
+    font-size: 15px; font-weight: 600; color: var(--text-primary);
+    margin: 0 0 4px;
+  }
+  .drop-sub { font-size: 13px; color: var(--text-muted); margin: 0; }
   input[type="file"] { display: none; }
-  .toolbar {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin: 20px 0 12px;
-    flex-wrap: wrap;
-  }
-  .toolbar .spacer { flex: 1; }
-  button {
-    background: var(--accent);
-    color: #0b1220;
-    border: none;
-    padding: 9px 16px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    font-size: 14px;
-  }
-  button:hover { background: var(--accent-2); }
-  button.secondary {
-    background: transparent;
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
-  button.secondary:hover { background: var(--panel-2); }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .list { display: flex; flex-direction: column; gap: 8px; }
+
+  /* ===== FILE ITEMS ===== */
+  .item-list { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
   .item {
     display: grid;
-    grid-template-columns: 56px 1fr auto;
+    grid-template-columns: 48px 1fr auto;
     gap: 14px;
     align-items: center;
-    background: var(--panel);
+    background: var(--bg-page);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-left: 3px solid var(--bg-strong);
+    border-radius: var(--radius);
     padding: 10px 14px;
+    animation: itemSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    transition: all 0.25s;
   }
+  .item:hover {
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+  .item.working { border-left-color: var(--accent); }
+  .item.done {
+    border-left-color: var(--accent);
+    background: var(--accent-soft);
+    animation: itemSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both, glow 1.2s ease-out 0.1s;
+  }
+  .item.error { border-left-color: var(--error); background: rgba(176, 0, 32, 0.04); }
+
   .thumb {
-    width: 56px; height: 56px;
-    border-radius: 6px;
-    background: #0b1220;
+    width: 48px; height: 48px;
+    border-radius: var(--radius);
+    background: var(--bg-medium);
     object-fit: cover;
+    border: 1px solid var(--border);
   }
   .info { min-width: 0; }
-  .name {
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .info-name {
+    font-size: 13px; font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .info-meta {
+    font-size: 12px; color: var(--text-muted);
+    margin-top: 3px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+  .info-meta .ok { color: var(--accent-hover); font-weight: 600; }
+  .info-meta .warn { color: var(--warn); font-weight: 600; }
+  .info-meta .err { color: var(--error); font-weight: 600; }
+  .info-meta .arrow { color: var(--text-muted); margin: 0 4px; }
+
+  .item-actions { display: flex; align-items: center; gap: 8px; }
+  .pill {
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 3px 9px; border-radius: var(--radius);
+    background: var(--bg-medium); color: var(--text-muted);
+    transition: all 0.3s;
     white-space: nowrap;
   }
-  .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .meta .ok { color: var(--ok); }
-  .meta .warn { color: var(--warn); }
-  .meta .err { color: var(--err); }
-  .actions { display: flex; gap: 6px; align-items: center; }
-  .status-pill {
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 999px;
-    background: var(--panel-2);
-    color: var(--muted);
+  .pill.working { background: var(--accent-soft); color: var(--accent-hover); }
+  .pill.done { background: var(--accent); color: white; }
+  .pill.err { background: var(--error); color: white; }
+  .pill .spinner {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border: 1.5px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 4px;
   }
-  .status-pill.done { background: rgba(34,197,94,0.15); color: var(--ok); }
-  .status-pill.err { background: rgba(239,68,68,0.15); color: var(--err); }
-  .status-pill.working { background: rgba(56,189,248,0.15); color: var(--accent); }
-  .footer { color: var(--muted); font-size: 12px; margin-top: 24px; text-align: center; }
+
+  .icon-btn {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    width: 28px; height: 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .icon-btn:hover {
+    background: var(--bg-soft);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
+  .icon-btn:disabled {
+    opacity: 0.4; cursor: not-allowed;
+  }
+
+  /* ===== BUTTONS ===== */
+  button { cursor: pointer; font-family: inherit; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    border: 1px solid var(--border-strong); border-radius: var(--radius);
+    background: white; font-size: 13px; font-weight: 600;
+    color: var(--text-primary); cursor: pointer;
+    transition: all 0.15s; font-family: inherit;
+  }
+  .btn:hover {
+    background: var(--bg-soft); border-color: var(--text-muted);
+    transform: translateY(-1px);
+  }
+  .btn:active { transform: translateY(0); }
+  .btn.primary {
+    background: var(--accent); color: white; border-color: var(--accent);
+  }
+  .btn.primary:hover {
+    background: var(--accent-hover); border-color: var(--accent-hover);
+    box-shadow: 0 4px 12px rgba(7, 80, 51, 0.3);
+  }
+  .btn.primary:disabled {
+    background: var(--bg-medium); color: var(--text-muted);
+    border-color: var(--bg-medium); cursor: not-allowed;
+    transform: none; box-shadow: none;
+  }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .btn-row {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px;
+    align-items: center;
+  }
+  .btn-row .spacer { flex: 1; }
+
+  .empty-state {
+    text-align: center;
+    padding: 24px 12px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-style: italic;
+  }
+
+  /* ===== SUMMARY ===== */
+  .summary-wrap {
+    background: linear-gradient(135deg, var(--bg-dark) 0%, #2a2a28 100%);
+    border-radius: var(--radius); padding: 1.25rem 1.5rem;
+    box-shadow: var(--shadow-md); position: relative; overflow: hidden;
+    animation: fadeInUp 0.5s ease-out 0.35s both;
+    opacity: 0.5; transition: opacity 0.4s;
+  }
+  .summary-wrap.ready { opacity: 1; }
+  .summary-wrap::before {
+    content: ""; position: absolute; top: 0; left: 0;
+    width: 3px; height: 100%; background: var(--accent);
+  }
+  .summary-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px; gap: 12px; flex-wrap: wrap;
+  }
+  .summary-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; font-weight: 600; color: white;
+    letter-spacing: 0.02em;
+  }
+  .summary-title .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--accent); color: white;
+    font-size: 11px; font-weight: 700;
+    padding: 3px 9px; border-radius: var(--radius);
+    min-width: 22px;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .summary-title .badge.bump { animation: counterPop 0.4s ease-out; }
+  .summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .stat {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+  }
+  .stat-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-value .unit {
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    font-weight: 500;
+    margin-left: 4px;
+  }
+  .stat-value .accent { color: #2dd47e; }
+
+  /* ===== TOAST ===== */
+  .toast {
+    position: fixed; bottom: 28px; left: 50%;
+    transform: translateX(-50%) translateY(140%);
+    background: var(--bg-dark); color: white;
+    padding: 12px 20px; border-radius: var(--radius);
+    font-size: 13px; font-weight: 600;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 1000;
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast .check {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+  }
+  .toast.error .check { background: var(--error); }
+
+  /* ===== CONFETTI ===== */
+  .confetti-piece {
+    position: fixed; top: 50%; left: 50%;
+    width: 8px; height: 14px;
+    pointer-events: none; z-index: 999;
+    animation: confetti-fall 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* ===== ACHIEVEMENT ===== */
+  .achievement {
+    position: fixed; top: 24px; right: 24px;
+    background: white; border: 1px solid var(--border);
+    border-left: 4px solid var(--accent); border-radius: var(--radius);
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: var(--shadow-lg);
+    transform: translateX(120%);
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 998; max-width: 320px;
+  }
+  .achievement.show { transform: translateX(0); }
+  .achievement-icon {
+    width: 36px; height: 36px;
+    background: var(--accent-soft); color: var(--accent-hover);
+    border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .achievement-text { font-size: 13px; line-height: 1.4; }
+  .achievement-text strong {
+    display: block; color: var(--text-primary);
+    font-weight: 600; font-size: 13px;
+  }
+  .achievement-text span { color: var(--text-muted); font-size: 12px; }
+
+  /* ===== FOOTER ===== */
+  footer {
+    margin-top: 3rem; padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--text-muted);
+    text-align: center;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  footer svg { color: var(--accent); }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 600px) {
+    .header { flex-direction: column; align-items: flex-start; }
+    .xp-stats { flex-direction: column; gap: 4px; }
+    h1 { font-size: 22px; }
+    .item { grid-template-columns: 40px 1fr; }
+    .item-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  }
 </style>
 </head>
 <body>
-  <div class="container">
+<div class="container">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="logo-wrap" title="Inmac Wstore">
+      <svg class="logo" viewBox="0 0 892 272" xmlns="http://www.w3.org/2000/svg">
+        <path d="M36.1395 45.781L0 150.575H33.1807L69.3203 45.781H36.1395Z" fill="#085033"/>
+        <path d="M51.7657 32.6817C54.2925 34.0781 57.318 34.7762 60.7092 34.7762C64.4661 34.7762 67.8907 33.9451 70.8165 32.2495C73.7754 30.5871 76.1026 28.2931 77.7317 25.4339C79.3608 22.5746 80.1919 19.4494 80.1919 16.0915C80.1919 13.1325 79.4938 10.373 78.1306 7.94601C76.7675 5.48574 74.7726 3.52417 72.1793 2.09455C69.6525 0.698182 66.6272 0 63.236 0C59.5124 0 56.1543 0.864421 53.1621 2.56001C50.2031 4.2556 47.8427 6.58288 46.2135 9.40887C44.5844 12.2681 43.7533 15.3933 43.7533 18.7512C43.7533 21.7435 44.4515 24.4697 45.8146 26.8635C47.1777 29.2905 49.1724 31.2521 51.7325 32.6484L51.7657 32.6817Z" fill="#22A96A"/>
+        <path d="M173.417 73.6419C173.417 67.192 172.087 61.6065 169.46 57.0849C166.834 52.5301 163.144 49.0392 158.555 46.7784C154.001 44.5176 148.847 43.3872 143.228 43.3872C140.801 43.3872 138.441 43.5867 136.147 44.0189C133.886 44.4179 131.625 45.0496 129.464 45.8807L129.131 46.0137L115.268 60.3431C114.869 60.7421 114.47 60.9416 114.071 60.9748C113.772 60.9748 113.705 60.9416 113.639 60.8418C113.539 60.7088 113.572 60.3431 113.672 59.9774L118.559 45.781H85.4781L49.3387 150.608H82.5195L105.958 82.4523C108.618 80.7235 111.345 79.1609 114.038 77.831C116.864 76.4346 119.689 75.3375 122.449 74.5395C125.142 73.7416 127.735 73.3427 130.162 73.3427C133.022 73.3427 135.316 73.8746 136.978 74.9718C138.541 76.0024 139.505 77.4653 139.871 79.4601C140.27 81.5879 139.937 84.2809 138.873 87.4393L117.03 150.608H150.21L169.493 94.6539C172.12 87.0071 173.45 79.9588 173.45 73.6751L173.417 73.6419Z" fill="#085033"/>
+        <path d="M338.588 46.9446C333.435 44.5841 327.517 43.3872 321.034 43.3872C317.31 43.3872 313.553 43.8194 309.896 44.6173C306.272 45.4153 302.449 46.6454 298.592 48.208L298.226 48.341L288.019 60.1436C287.753 60.4429 287.454 60.6756 287.255 60.7421C287.022 60.8086 286.956 60.7421 286.922 60.7421C286.889 60.7421 286.856 60.7421 286.856 60.7088C285.36 56.9519 283.232 53.727 280.505 51.1337C277.812 48.5737 274.621 46.6122 271.063 45.3155C267.506 44.0189 263.649 43.3872 259.527 43.3872C257.233 43.3872 254.939 43.5867 252.777 44.0189C250.583 44.4511 248.455 45.0828 246.394 45.914L246.062 46.047L232.197 60.3764C231.798 60.7753 231.399 60.9748 231 61.0081C230.701 61.0081 230.635 60.9748 230.568 60.8751C230.469 60.7421 230.502 60.3764 230.602 60.0107L235.489 45.8142H202.408L166.269 150.642H199.449L222.888 82.4856C225.515 80.7567 228.175 79.1941 230.801 77.8642C233.561 76.4679 236.32 75.3707 239.013 74.5728C241.64 73.7749 244.166 73.4092 246.527 73.4092C249.12 73.4092 251.248 73.9744 252.844 75.0715C254.373 76.1354 255.304 77.5983 255.67 79.6263C256.069 81.7541 255.736 84.4139 254.672 87.5058L232.829 150.675H266.01L285.26 94.7537C286.69 90.764 287.787 86.5749 288.518 82.2528C291.145 80.5572 293.804 79.0279 296.431 77.7645C299.224 76.4014 302.016 75.3042 304.776 74.5395C307.469 73.7749 310.095 73.4092 312.489 73.4092C315.348 73.4092 317.643 73.9411 319.305 75.0383C320.867 76.0689 321.832 77.5318 322.197 79.5266C322.596 81.6544 322.264 84.3474 321.2 87.5058L299.357 150.675H332.537L351.821 94.7204C354.281 87.6388 355.511 81.0559 355.511 75.1047C355.511 68.3224 353.982 62.4709 350.956 57.7499C347.931 53.0288 343.742 49.4049 338.522 47.0111L338.588 46.9446Z" fill="#085033"/>
+        <path d="M456.881 45.781L450.963 62.7037C450.764 63.3021 450.465 63.7011 450.132 63.8341C449.766 64.0003 449.6 63.9338 449.434 63.8341C449.234 63.7011 449.068 63.3686 449.035 62.8699L447.373 47.7758L446.541 47.4101C444.58 46.5124 442.385 45.7477 440.058 45.1493C437.764 44.5509 435.304 44.0854 432.777 43.8194C430.284 43.5534 427.624 43.3872 424.931 43.3872C413.261 43.3872 402.522 46.3462 393.047 52.1976C383.605 58.0491 376.091 65.8621 370.738 75.5037C365.385 85.1453 362.659 95.5183 362.659 106.39C362.659 114.968 364.421 122.881 367.912 129.929C371.403 137.01 376.357 142.662 382.574 146.752C388.825 150.841 396.039 152.902 404.018 152.902C409.404 152.902 414.724 151.972 419.844 150.176C423.667 148.813 427.192 147.018 430.35 144.757L429.685 150.608H453.856L489.995 45.781H456.915H456.881ZM444.945 80.2913L431.813 118.592C429.419 120.287 426.693 121.617 423.634 122.515C420.376 123.479 417.084 123.978 413.826 123.978C409.57 123.978 405.947 123.113 403.021 121.418C400.128 119.755 397.868 117.362 396.371 114.403C394.842 111.344 394.044 107.753 394.044 103.664C394.044 98.1116 395.374 92.9251 397.934 88.1708C400.528 83.4497 404.218 79.5931 408.972 76.7339C413.693 73.8746 419.245 72.445 425.429 72.445C428.156 72.445 430.716 72.7775 433.076 73.4092C435.404 74.0409 437.631 75.005 439.659 76.2351C441.454 77.3323 443.25 78.6954 444.945 80.3245V80.2913Z" fill="#085033"/>
+        <path d="M579.463 53.5275C575.341 50.1696 570.553 47.5431 565.233 45.7477C559.914 43.9524 554.096 43.0215 547.945 43.0215C536.275 43.0215 525.337 46.1467 515.463 52.2974C505.621 58.448 497.742 66.527 491.957 76.3016C486.172 86.1095 483.246 96.4492 483.246 107.022C483.246 115.799 485.274 123.811 489.33 130.827C493.353 137.842 499.072 143.427 506.32 147.383C513.534 151.34 521.879 153.335 531.155 153.335C538.702 153.335 546.017 152.005 552.932 149.345L554.195 148.88L548.975 120.653L547.147 121.384C545.119 122.216 542.925 122.847 540.664 123.28C538.403 123.712 536.009 123.944 533.549 123.944C529.493 123.944 526.002 123.147 523.176 121.584C520.416 120.021 518.255 117.794 516.826 114.901C515.363 111.942 514.598 108.451 514.598 104.462C514.598 98.6768 515.995 93.2908 518.754 88.4367C521.514 83.5827 525.37 79.6596 530.224 76.7671C535.045 73.8746 540.464 72.445 546.349 72.445C550.338 72.445 553.83 73.0767 556.656 74.3401C559.415 75.5702 561.476 77.1661 562.773 79.0944L564.17 81.1889L580.494 54.4252L579.397 53.5275H579.463Z" fill="#085033"/>
+        <path d="M287.022 168.927H303.246L305.474 249.584L362.36 168.927H378.784L384.968 248.953L440.823 168.927H460.538L387.328 269.233H371.469L365.119 189.408L307.303 269.233H291.444L287.022 168.927Z" fill="#085033"/>
+        <path d="M464.794 270.098C460.106 269.034 455.584 267.305 451.296 264.945C447.007 262.584 443.15 259.559 439.759 255.868L450.265 244.431C453.956 248.421 458.178 251.48 462.899 253.574C467.62 255.669 473.039 256.699 479.123 256.699C483.678 256.699 487.635 256.101 490.959 254.937C494.317 253.774 496.911 252.078 498.739 249.817C500.568 247.59 501.499 244.897 501.499 241.738C501.499 239.577 501.1 237.749 500.268 236.219C499.437 234.69 497.975 233.161 495.847 231.598C493.719 230.069 490.66 228.24 486.67 226.145L480.852 223.286C476.364 221.025 472.707 218.598 469.881 216.005C467.055 213.412 464.927 210.519 463.464 207.328C462.034 204.136 461.303 200.645 461.303 196.822C461.303 190.804 462.932 185.484 466.19 180.93C469.448 176.342 473.904 172.817 479.556 170.324C485.208 167.83 491.558 166.6 498.639 166.6C504.923 166.6 511.14 167.598 517.324 169.659C523.508 171.687 528.994 174.746 533.782 178.868L524.639 190.571C521.381 187.546 517.59 185.252 513.268 183.623C508.946 181.994 504.358 181.196 499.57 181.196C495.448 181.196 491.724 181.794 488.399 182.958C485.075 184.121 482.482 185.817 480.62 188.078C478.758 190.339 477.793 192.965 477.793 196.057C477.793 198.019 478.226 199.88 479.123 201.576C480.021 203.305 481.384 204.901 483.213 206.364C485.041 207.826 487.468 209.322 490.494 210.785L496.212 213.645C501.432 216.338 505.621 218.997 508.78 221.624C511.938 224.25 514.265 227.076 515.695 230.135C517.125 233.194 517.856 236.751 517.856 240.741C517.856 246.626 516.36 251.945 513.335 256.633C510.309 261.321 505.887 265.011 500.069 267.704C494.218 270.364 487.269 271.727 479.223 271.727C474.236 271.727 469.415 271.195 464.694 270.098H464.794Z" fill="#085033"/>
+        <path d="M556.157 269.034C552.3 267.239 549.374 264.745 547.346 261.487C545.318 258.229 544.287 254.405 544.287 250.05C544.287 246.725 544.886 243.268 546.116 239.644L565.4 183.589H545.385L550.472 168.928H570.553L580.593 139.604H597.284L587.143 168.928H617.464L612.477 183.589H581.957L561.875 242.303C560.712 245.628 560.379 248.354 560.878 250.449C561.377 252.577 562.574 254.139 564.535 255.137C566.464 256.134 568.99 256.666 572.149 256.666C574.31 256.666 576.404 256.433 578.499 255.968C580.593 255.502 582.655 254.804 584.683 253.907L588.639 267.538C585.448 268.901 582.289 269.932 579.131 270.63C576.006 271.328 572.847 271.694 569.722 271.694C564.502 271.694 559.98 270.796 556.124 269.034H556.157Z" fill="#085033"/>
+        <path d="M631.029 265.909C624.313 262.218 619.093 257.098 615.403 250.515C611.713 243.932 609.884 236.385 609.884 227.841C609.884 217.401 612.61 207.461 618.03 198.052C623.482 188.643 630.896 181.063 640.305 175.278C649.714 169.493 660.021 166.6 671.292 166.6C680.135 166.6 687.915 168.462 694.664 172.186C701.38 175.909 706.6 181.063 710.29 187.679C713.981 194.295 715.809 201.842 715.809 210.32C715.809 220.693 713.083 230.601 707.664 240.009C702.211 249.418 694.797 256.999 685.388 262.784C675.979 268.568 665.706 271.461 654.502 271.461C645.591 271.461 637.779 269.632 631.029 265.942V265.909ZM677.841 249.95C684.557 245.761 689.877 240.209 693.733 233.26C697.59 226.312 699.552 218.898 699.552 211.051C699.552 205.1 698.388 199.914 696.06 195.525C693.733 191.136 690.342 187.745 685.92 185.385C681.498 183.024 676.245 181.827 670.161 181.827C662.115 181.827 654.701 183.922 647.952 188.111C641.203 192.3 635.85 197.852 631.96 204.801C628.07 211.75 626.109 219.164 626.109 227.01C626.109 232.961 627.306 238.181 629.666 242.603C632.027 247.024 635.451 250.416 639.906 252.743C644.361 255.07 649.647 256.234 655.732 256.234C663.777 256.234 671.158 254.139 677.908 249.95H677.841Z" fill="#085033"/>
+        <path d="M750.353 168.928H767.043L762.355 182.393C762.156 182.958 762.189 183.39 762.455 183.722C762.687 184.055 763.053 184.188 763.519 184.121C763.984 184.055 764.383 183.822 764.749 183.39L777.017 170.39C780.707 168.795 784.398 167.731 788.122 167.165C791.845 166.6 795.935 166.401 800.423 166.534L794.804 182.559C790.25 182.559 785.894 183.091 781.705 184.188C777.516 185.252 773.393 186.947 769.337 189.208C765.281 191.469 761.158 194.361 756.969 197.886L732.433 269.233H715.743L750.32 168.928H750.353Z" fill="#085033"/>
+        <path d="M809.267 266.075C802.518 262.385 797.298 257.231 793.608 250.582C789.917 243.933 788.089 236.352 788.089 227.808C788.089 217.302 790.748 207.328 796.101 197.886C801.454 188.443 808.768 180.863 818.044 175.078C827.32 169.293 837.593 166.401 848.831 166.401C857.508 166.401 865.055 168.229 871.505 171.92C877.955 175.61 882.909 180.763 886.333 187.413C889.791 194.062 891.487 201.676 891.487 210.287C891.487 212.68 891.321 215.074 891.021 217.435C890.722 219.795 890.256 222.222 889.625 224.683H799.924V210.021H875.229C875.229 204.169 874.165 199.082 872.004 194.76C869.843 190.438 866.718 187.08 862.595 184.753C858.473 182.426 853.485 181.262 847.667 181.262C839.688 181.262 832.373 183.357 825.724 187.579C819.075 191.801 813.855 197.42 810.065 204.435C806.241 211.484 804.346 218.997 804.346 226.977C804.346 232.961 805.477 238.214 807.704 242.636C809.932 247.058 813.223 250.449 817.512 252.809C821.801 255.169 827.054 256.367 832.772 256.367C839.289 256.367 844.908 255.137 850.626 252.676C856.378 250.216 861.631 246.559 866.452 241.705L878.421 250.914C871.771 257.996 864.623 263.182 856.976 266.54C849.329 269.898 841.25 271.561 832.772 271.561C823.796 271.561 815.916 269.732 809.167 270.098H809.267Z" fill="#085033"/>
+      </svg>
+    </div>
+    <div class="header-meta"><span class="dot"></span>Outil interne · WebP Converter</div>
+  </header>
+
+  <div class="title-block">
     <h1>Convertisseur PNG / JPEG → WebP</h1>
-    <p class="subtitle">100% local — aucune image n'est envoyée à l'extérieur. Objectif : ≤ 115 Ko, qualité maximale.</p>
+    <p class="subtitle">Glisse tes images, on les convertit en WebP avec la meilleure qualité possible sous 115 Ko. 100% local, rien ne quitte ton navigateur.</p>
+  </div>
+
+  <!-- XP BAR -->
+  <div class="xp-bar" id="xpBar">
+    <div class="xp-icon" id="xpIcon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+      </svg>
+    </div>
+    <div class="xp-track">
+      <div class="xp-fill" id="xpFill"></div>
+    </div>
+    <div class="xp-stats">
+      <span><strong id="xpDone">0</strong>/<strong id="xpTotal">0</strong> converties</span>
+      <span><strong id="xpSaved">0</strong> Ko économisés</span>
+    </div>
+  </div>
+
+  <!-- CARD 1 — Drop zone -->
+  <section class="card appear-1">
+    <h2 class="card-title" id="card1Title">
+      <span class="card-title-num"><span>1</span></span>
+      Sélection des images
+    </h2>
 
     <label class="drop" id="drop">
-      <strong>Glissez-déposez vos images ici</strong>
-      <p>ou cliquez pour les sélectionner (PNG, JPG, JPEG — sélection multiple)</p>
+      <div class="drop-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="17 8 12 3 7 8"></polyline>
+          <line x1="12" y1="3" x2="12" y2="15"></line>
+        </svg>
+      </div>
+      <p class="drop-title">Glisse-dépose tes images ici</p>
+      <p class="drop-sub">ou clique pour sélectionner — PNG, JPG, JPEG · sélection multiple</p>
       <input type="file" id="file" accept="image/png,image/jpeg" multiple>
     </label>
+  </section>
 
-    <div class="toolbar">
-      <button id="convertBtn" disabled>Convertir</button>
-      <button id="downloadAllBtn" class="secondary" disabled>Tout télécharger</button>
-      <button id="clearBtn" class="secondary" disabled>Vider la liste</button>
-      <span class="spacer"></span>
-      <span class="status-pill" id="globalStatus">En attente</span>
+  <!-- CARD 2 — Liste & conversion -->
+  <section class="card appear-2">
+    <h2 class="card-title" id="card2Title">
+      <span class="card-title-num"><span>2</span></span>
+      Conversion
+    </h2>
+
+    <div class="item-list" id="list">
+      <div class="empty-state" id="emptyState">Aucune image pour le moment — ajoute-les ci-dessus.</div>
     </div>
 
-    <div class="list" id="list"></div>
+    <div class="btn-row">
+      <button type="button" class="btn primary" id="convertBtn" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        Convertir
+      </button>
+      <button type="button" class="btn" id="downloadAllBtn" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Tout télécharger
+      </button>
+      <button type="button" class="btn" id="clearBtn" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"></polyline>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+        </svg>
+        Vider
+      </button>
+    </div>
+  </section>
 
-    <p class="footer">Limite cible : 115 Ko par image. Si l'image est trop grande, sa résolution est réduite progressivement jusqu'à respecter la limite.</p>
+  <!-- CARD 3 — Résumé -->
+  <section style="padding: 0; background: transparent; border: none; box-shadow: none;">
+    <div class="summary-wrap" id="summary">
+      <div class="summary-header">
+        <div class="summary-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Résumé de la conversion</span>
+          <span class="badge" id="summaryBadge">0</span>
+        </div>
+      </div>
+
+      <div class="summary-stats">
+        <div class="stat">
+          <div class="stat-label">Images converties</div>
+          <div class="stat-value" id="statDone">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Poids original</div>
+          <div class="stat-value" id="statBefore">0<span class="unit">Ko</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Poids final</div>
+          <div class="stat-value" id="statAfter">0<span class="unit">Ko</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Gain</div>
+          <div class="stat-value"><span class="accent" id="statGain">0%</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s-8-4.5-8-11.8A5.5 5.5 0 0 1 12 4a5.5 5.5 0 0 1 8 6.2c0 7.3-8 11.8-8 11.8z"></path>
+    </svg>
+    Aucune donnée envoyée — tout reste dans ton navigateur · Limite cible : 115 Ko / image
+  </footer>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span class="check">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+  </span>
+  <span id="toastMsg">OK</span>
+</div>
+
+<!-- ACHIEVEMENT -->
+<div class="achievement" id="achievement">
+  <div class="achievement-icon">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="8" r="7"></circle>
+      <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+    </svg>
   </div>
+  <div class="achievement-text">
+    <strong id="achTitle">Achievement</strong>
+    <span id="achDesc">Description</span>
+  </div>
+</div>
 
 <script>
 (() => {
   const MAX_BYTES = 115 * 1024;
-  const dropEl = document.getElementById('drop');
-  const fileEl = document.getElementById('file');
-  const listEl = document.getElementById('list');
-  const convertBtn = document.getElementById('convertBtn');
-  const downloadAllBtn = document.getElementById('downloadAllBtn');
-  const clearBtn = document.getElementById('clearBtn');
-  const globalStatus = document.getElementById('globalStatus');
+  const $ = id => document.getElementById(id);
+
+  const dropEl = $('drop');
+  const fileEl = $('file');
+  const listEl = $('list');
+  const emptyState = $('emptyState');
+  const convertBtn = $('convertBtn');
+  const downloadAllBtn = $('downloadAllBtn');
+  const clearBtn = $('clearBtn');
 
   const items = [];
+  const state = { achievements: new Set() };
 
-  // ---------- Drag & drop ----------
-  ['dragenter', 'dragover'].forEach(ev =>
-    dropEl.addEventListener(ev, e => {
-      e.preventDefault();
-      dropEl.classList.add('dragover');
-    })
-  );
-  ['dragleave', 'drop'].forEach(ev =>
-    dropEl.addEventListener(ev, e => {
-      e.preventDefault();
-      dropEl.classList.remove('dragover');
-    })
-  );
-  dropEl.addEventListener('drop', e => {
-    const files = [...(e.dataTransfer?.files || [])];
-    addFiles(files);
-  });
-  fileEl.addEventListener('change', () => {
-    addFiles([...fileEl.files]);
-    fileEl.value = '';
-  });
-
-  // ---------- File list ----------
-  function addFiles(files) {
-    const accepted = files.filter(f => /image\/(png|jpe?g)/i.test(f.type) || /\.(png|jpe?g)$/i.test(f.name));
-    for (const f of accepted) {
-      const id = crypto.randomUUID();
-      const item = {
-        id,
-        file: f,
-        baseName: stripExt(f.name),
-        originalSize: f.size,
-        status: 'pending', // pending | working | done | error
-        blob: null,
-        quality: null,
-        scale: 1,
-        message: '',
-      };
-      items.push(item);
-      renderItem(item);
-    }
-    updateButtons();
+  // ===== Helpers =====
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
-
   function stripExt(name) {
     return name.replace(/\.(png|jpe?g)$/i, '');
   }
-
   function formatSize(bytes) {
     if (bytes < 1024) return bytes + ' o';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' Ko';
     return (bytes / 1024 / 1024).toFixed(2) + ' Mo';
   }
 
-  // ---------- Rendering ----------
-  function renderItem(item) {
-    const el = document.createElement('div');
-    el.className = 'item';
-    el.id = 'item-' + item.id;
+  // ===== Drag & drop =====
+  ['dragenter', 'dragover'].forEach(ev =>
+    dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.add('dragover'); })
+  );
+  ['dragleave', 'drop'].forEach(ev =>
+    dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.remove('dragover'); })
+  );
+  dropEl.addEventListener('drop', e => {
+    addFiles([...(e.dataTransfer?.files || [])]);
+  });
+  fileEl.addEventListener('change', () => {
+    addFiles([...fileEl.files]);
+    fileEl.value = '';
+  });
 
-    const img = document.createElement('img');
-    img.className = 'thumb';
-    img.alt = '';
-    const url = URL.createObjectURL(item.file);
-    img.src = url;
-    img.addEventListener('load', () => URL.revokeObjectURL(url));
+  // ===== File list =====
+  function addFiles(files) {
+    const accepted = files.filter(f => /image\/(png|jpe?g)/i.test(f.type) || /\.(png|jpe?g)$/i.test(f.name));
+    const rejected = files.length - accepted.length;
+    if (rejected > 0) showToast(rejected + ' fichier' + (rejected > 1 ? 's' : '') + ' ignoré' + (rejected > 1 ? 's' : '') + ' (format non supporté)', 'error');
 
-    const info = document.createElement('div');
-    info.className = 'info';
-    info.innerHTML = `
-      <div class="name">${escapeHtml(item.file.name)}</div>
-      <div class="meta" data-meta>${formatSize(item.originalSize)} → <em>en attente</em></div>
-    `;
+    let added = 0;
+    for (const f of accepted) {
+      items.push({
+        id: 'i' + Math.random().toString(36).slice(2, 10),
+        file: f,
+        baseName: stripExt(f.name),
+        originalSize: f.size,
+        status: 'pending',
+        blob: null,
+        quality: null,
+        scale: 1,
+        message: ''
+      });
+      added++;
+    }
 
-    const actions = document.createElement('div');
-    actions.className = 'actions';
-    actions.innerHTML = `
-      <span class="status-pill" data-pill>en attente</span>
-      <button class="secondary" data-download disabled>Télécharger</button>
-      <button class="secondary" data-remove>✕</button>
-    `;
-    actions.querySelector('[data-remove]').addEventListener('click', () => removeItem(item.id));
-    actions.querySelector('[data-download]').addEventListener('click', () => downloadItem(item));
-
-    el.append(img, info, actions);
-    listEl.appendChild(el);
+    if (added > 0) {
+      renderList();
+      updateButtons();
+      updateXp();
+      if (!state.achievements.has('firstFile')) {
+        unlockAchievement('firstFile', 'C\'est parti ! 🚀', 'Première image ajoutée à la file.');
+      }
+      if (items.length >= 10 && !state.achievements.has('bulk')) {
+        unlockAchievement('bulk', 'Mode batch activé 📦', '10 images ou plus dans la file.');
+      }
+    }
   }
 
-  function updateItem(item) {
-    const el = document.getElementById('item-' + item.id);
+  // ===== Rendering =====
+  function renderList() {
+    listEl.innerHTML = '';
+    if (items.length === 0) {
+      listEl.appendChild(emptyState);
+      return;
+    }
+    for (const item of items) {
+      const el = document.createElement('div');
+      el.className = 'item';
+      el.id = 'item-' + item.id;
+      if (item.status !== 'pending') el.classList.add(item.status);
+
+      const url = URL.createObjectURL(item.file);
+      el.innerHTML = `
+        <img class="thumb" alt="" src="${url}">
+        <div class="info">
+          <div class="info-name">${escapeHtml(item.file.name)}</div>
+          <div class="info-meta" data-meta>${formatSize(item.originalSize)} <span class="arrow">→</span> <em>en attente</em></div>
+        </div>
+        <div class="item-actions">
+          <span class="pill" data-pill>en attente</span>
+          <button class="icon-btn" data-download title="Télécharger" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+          <button class="icon-btn" data-remove title="Retirer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      `;
+      const img = el.querySelector('img');
+      img.addEventListener('load', () => URL.revokeObjectURL(url));
+      el.querySelector('[data-remove]').addEventListener('click', () => removeItem(item.id));
+      el.querySelector('[data-download]').addEventListener('click', () => downloadItem(item));
+      listEl.appendChild(el);
+      updateItemUI(item);
+    }
+  }
+
+  function updateItemUI(item) {
+    const el = $('item-' + item.id);
     if (!el) return;
+    el.classList.remove('working', 'done', 'error');
+    if (item.status !== 'pending') el.classList.add(item.status);
+
     const meta = el.querySelector('[data-meta]');
     const pill = el.querySelector('[data-pill]');
     const dlBtn = el.querySelector('[data-download]');
+    pill.classList.remove('working', 'done', 'err');
 
-    pill.classList.remove('done', 'err', 'working');
     if (item.status === 'pending') {
       pill.textContent = 'en attente';
-      meta.innerHTML = `${formatSize(item.originalSize)} → <em>en attente</em>`;
+      meta.innerHTML = `${formatSize(item.originalSize)} <span class="arrow">→</span> <em>en attente</em>`;
+      dlBtn.disabled = true;
     } else if (item.status === 'working') {
-      pill.textContent = 'conversion…';
       pill.classList.add('working');
-      meta.innerHTML = `${formatSize(item.originalSize)} → <em>conversion en cours…</em>`;
+      pill.innerHTML = '<span class="spinner"></span>conversion';
+      meta.innerHTML = `${formatSize(item.originalSize)} <span class="arrow">→</span> <em>conversion…</em>`;
+      dlBtn.disabled = true;
     } else if (item.status === 'done') {
-      pill.textContent = 'OK';
       pill.classList.add('done');
-      const sizeClass = item.blob.size <= MAX_BYTES ? 'ok' : 'warn';
-      const qInfo = item.quality !== null ? `q=${item.quality.toFixed(2)}` : '';
-      const sInfo = item.scale < 1 ? `, redim. ×${item.scale.toFixed(2)}` : '';
-      meta.innerHTML = `${formatSize(item.originalSize)} → <span class="${sizeClass}">${formatSize(item.blob.size)}</span> <span style="opacity:.7">(${qInfo}${sInfo})</span>`;
+      pill.textContent = 'OK';
+      const cls = item.blob.size <= MAX_BYTES ? 'ok' : 'warn';
+      const q = item.quality !== null ? 'q=' + item.quality.toFixed(2) : '';
+      const s = item.scale < 1 ? ' · ×' + item.scale.toFixed(2) : '';
+      meta.innerHTML = `${formatSize(item.originalSize)} <span class="arrow">→</span> <span class="${cls}">${formatSize(item.blob.size)}</span> <span style="opacity:.7">(${q}${s})</span>`;
       dlBtn.disabled = false;
     } else if (item.status === 'error') {
-      pill.textContent = 'erreur';
       pill.classList.add('err');
-      meta.innerHTML = `<span class="err">${escapeHtml(item.message || 'Erreur de conversion')}</span>`;
+      pill.textContent = 'erreur';
+      meta.innerHTML = `<span class="err">${escapeHtml(item.message || 'Erreur')}</span>`;
+      dlBtn.disabled = true;
     }
   }
 
@@ -273,23 +860,70 @@
     const idx = items.findIndex(i => i.id === id);
     if (idx === -1) return;
     items.splice(idx, 1);
-    document.getElementById('item-' + id)?.remove();
+    renderList();
     updateButtons();
+    updateXp();
   }
 
   function updateButtons() {
     const hasPending = items.some(i => i.status === 'pending');
     const hasDone = items.some(i => i.status === 'done');
-    convertBtn.disabled = !hasPending;
+    const isWorking = items.some(i => i.status === 'working');
+    convertBtn.disabled = !hasPending || isWorking;
     downloadAllBtn.disabled = !hasDone;
-    clearBtn.disabled = items.length === 0;
+    clearBtn.disabled = items.length === 0 || isWorking;
   }
 
-  function escapeHtml(s) {
-    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  // ===== XP / progression =====
+  function updateXp() {
+    const total = items.length;
+    const done = items.filter(i => i.status === 'done').length;
+    const beforeBytes = items.filter(i => i.status === 'done').reduce((a, i) => a + i.originalSize, 0);
+    const afterBytes = items.filter(i => i.status === 'done').reduce((a, i) => a + i.blob.size, 0);
+    const savedKb = Math.max(0, Math.round((beforeBytes - afterBytes) / 1024));
+
+    const percent = total === 0 ? 0 : (done / total) * 100;
+    $('xpFill').style.width = percent + '%';
+
+    bump('xpDone', done);
+    $('xpTotal').textContent = total;
+    bump('xpSaved', savedKb);
+
+    $('xpBar').classList.toggle('active', done > 0);
+    $('xpBar').classList.toggle('complete', total > 0 && done === total);
+
+    $('card1Title').classList.toggle('complete', total > 0);
+    $('card2Title').classList.toggle('complete', total > 0 && done === total);
+
+    // Summary
+    $('statDone').textContent = done;
+    $('statBefore').innerHTML = Math.round(beforeBytes / 1024) + '<span class="unit">Ko</span>';
+    $('statAfter').innerHTML = Math.round(afterBytes / 1024) + '<span class="unit">Ko</span>';
+    const gainPct = beforeBytes === 0 ? 0 : Math.round(((beforeBytes - afterBytes) / beforeBytes) * 100);
+    $('statGain').textContent = (gainPct >= 0 ? '−' : '+') + Math.abs(gainPct) + '%';
+
+    const badge = $('summaryBadge');
+    if (badge.textContent !== String(done)) {
+      badge.textContent = done;
+      badge.classList.remove('bump');
+      void badge.offsetWidth;
+      badge.classList.add('bump');
+    }
+    $('summary').classList.toggle('ready', done > 0);
   }
 
-  // ---------- Conversion ----------
+  function bump(id, value) {
+    const el = $(id);
+    const prev = parseInt(el.textContent) || 0;
+    el.textContent = value;
+    if (value !== prev) {
+      el.classList.remove('bumping');
+      void el.offsetWidth;
+      el.classList.add('bumping');
+    }
+  }
+
+  // ===== Conversion =====
   async function loadImage(file) {
     if (typeof createImageBitmap === 'function') {
       try { return await createImageBitmap(file); } catch (_) {}
@@ -326,51 +960,37 @@
     });
   }
 
-  // Binary search the highest quality that keeps blob size <= MAX_BYTES.
-  // Returns { blob, quality } or null if even quality=0 is too large.
   async function findBestQuality(canvas) {
-    // Try max quality first — often already fits and we can stop.
     const qMaxBlob = await canvasToWebP(canvas, 1);
     if (qMaxBlob.size <= MAX_BYTES) return { blob: qMaxBlob, quality: 1 };
-
-    // Check min quality — if still too large, we need to downscale.
     const qMinBlob = await canvasToWebP(canvas, 0);
     if (qMinBlob.size > MAX_BYTES) return null;
-
-    // Binary search between 0 and 1.
     let lo = 0, hi = 1;
     let best = { blob: qMinBlob, quality: 0 };
     for (let i = 0; i < 8; i++) {
       const mid = (lo + hi) / 2;
       const blob = await canvasToWebP(canvas, mid);
-      if (blob.size <= MAX_BYTES) {
-        best = { blob, quality: mid };
-        lo = mid;
-      } else {
-        hi = mid;
-      }
+      if (blob.size <= MAX_BYTES) { best = { blob, quality: mid }; lo = mid; }
+      else { hi = mid; }
     }
     return best;
   }
 
   async function convertOne(item) {
     item.status = 'working';
-    updateItem(item);
+    updateItemUI(item);
+    updateButtons();
     try {
       const bitmap = await loadImage(item.file);
       let scale = 1;
       let result = null;
-
-      // Try at full resolution first; if even q=0 is too big, downscale.
       for (let attempt = 0; attempt < 8; attempt++) {
         const canvas = drawToCanvas(bitmap, scale);
         result = await findBestQuality(canvas);
         if (result) break;
-        scale *= 0.85; // shrink ~15% per attempt
+        scale *= 0.85;
       }
-
       if (!result) throw new Error('Image trop volumineuse même après redimensionnement');
-
       item.blob = result.blob;
       item.quality = result.quality;
       item.scale = scale;
@@ -379,24 +999,39 @@
       item.status = 'error';
       item.message = err.message || String(err);
     }
-    updateItem(item);
+    updateItemUI(item);
+    updateXp();
     updateButtons();
   }
 
   async function convertAll() {
     convertBtn.disabled = true;
-    globalStatus.textContent = 'Conversion…';
-    globalStatus.className = 'status-pill working';
     const pending = items.filter(i => i.status === 'pending');
     for (const it of pending) {
       await convertOne(it);
     }
+    const done = items.filter(i => i.status === 'done').length;
     const errs = items.filter(i => i.status === 'error').length;
-    globalStatus.textContent = errs ? `Terminé (${errs} erreur${errs > 1 ? 's' : ''})` : 'Terminé';
-    globalStatus.className = 'status-pill ' + (errs ? 'err' : 'done');
-    updateButtons();
+
+    if (done > 0) {
+      fireConfetti(convertBtn);
+      showToast(done + ' image' + (done > 1 ? 's' : '') + ' converties' + (errs ? ' (' + errs + ' erreur' + (errs > 1 ? 's' : '') + ')' : '') + ' 🎯');
+      if (!state.achievements.has('firstConvert')) {
+        unlockAchievement('firstConvert', 'Première conversion ! ⚡', 'Plus qu\'à télécharger.');
+      }
+      if (done >= 5 && !state.achievements.has('marathon')) {
+        unlockAchievement('marathon', 'Marathon WebP 🏃', '5 images converties d\'un coup.');
+      }
+      const allUnder = items.filter(i => i.status === 'done').every(i => i.blob.size <= MAX_BYTES);
+      if (allUnder && done > 0 && !state.achievements.has('perfectCap')) {
+        unlockAchievement('perfectCap', 'Toutes sous 115 Ko ✨', 'Mission accomplie.');
+      }
+    } else if (errs > 0) {
+      showToast('Conversion échouée', 'error');
+    }
   }
 
+  // ===== Downloads =====
   function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -415,24 +1050,80 @@
 
   async function downloadAll() {
     const done = items.filter(i => i.status === 'done');
-    for (let i = 0; i < done.length; i++) {
-      downloadItem(done[i]);
-      // Small delay so the browser doesn't merge/cancel downloads.
+    for (const it of done) {
+      downloadItem(it);
       await new Promise(r => setTimeout(r, 150));
+    }
+    showToast(done.length + ' fichier' + (done.length > 1 ? 's' : '') + ' téléchargé' + (done.length > 1 ? 's' : '') + ' 📥');
+    fireConfetti(downloadAllBtn);
+    if (!state.achievements.has('downloaded')) {
+      unlockAchievement('downloaded', 'Mission accomplie ! 🎉', 'Tes WebP sont prêts à être utilisés.');
     }
   }
 
   function clearAll() {
+    if (items.length === 0) return;
+    if (!confirm('Vider toute la liste ?')) return;
     items.length = 0;
-    listEl.innerHTML = '';
-    globalStatus.textContent = 'En attente';
-    globalStatus.className = 'status-pill';
+    renderList();
     updateButtons();
+    updateXp();
+    showToast('Liste vidée');
   }
 
+  // ===== Toast =====
+  function showToast(msg, type) {
+    const t = $('toast');
+    $('toastMsg').textContent = msg;
+    t.classList.toggle('error', type === 'error');
+    t.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  // ===== Confetti =====
+  function fireConfetti(origin) {
+    const colors = ['#23A96A', '#075033', '#2dd47e', '#22A96A', '#085033', '#4A4A48'];
+    const count = 28;
+    const rect = origin ? origin.getBoundingClientRect() : { left: innerWidth/2, top: innerHeight/2, width: 0, height: 0 };
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('div');
+      p.className = 'confetti-piece';
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.5;
+      const distance = 120 + Math.random() * 200;
+      p.style.left = cx + 'px';
+      p.style.top = cy + 'px';
+      p.style.background = colors[i % colors.length];
+      p.style.setProperty('--cx', Math.cos(angle) * distance + 'px');
+      p.style.setProperty('--cy', Math.sin(angle) * distance + 200 + 'px');
+      p.style.setProperty('--cr', (Math.random() * 720 - 360) + 'deg');
+      p.style.animationDuration = (1 + Math.random() * 0.6) + 's';
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 1800);
+    }
+  }
+
+  // ===== Achievement =====
+  function unlockAchievement(key, title, desc) {
+    if (state.achievements.has(key)) return;
+    state.achievements.add(key);
+    const a = $('achievement');
+    $('achTitle').textContent = title;
+    $('achDesc').textContent = desc;
+    a.classList.add('show');
+    clearTimeout(unlockAchievement._t);
+    unlockAchievement._t = setTimeout(() => a.classList.remove('show'), 3500);
+  }
+
+  // ===== Bindings =====
   convertBtn.addEventListener('click', convertAll);
   downloadAllBtn.addEventListener('click', downloadAll);
   clearBtn.addEventListener('click', clearAll);
+
+  // Init
+  updateXp();
 })();
 </script>
 </body>
