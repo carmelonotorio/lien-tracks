@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Convertisseur PNG/JPEG → WebP (≤ 115 Ko)</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --accent-2: #0ea5e9;
+    --ok: #22c55e;
+    --warn: #f59e0b;
+    --err: #ef4444;
+    --border: #334155;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px 16px;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; font-size: 24px; }
+  .subtitle { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
+  .drop {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 48px 24px;
+    text-align: center;
+    background: var(--panel);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .drop:hover, .drop.dragover {
+    border-color: var(--accent);
+    background: var(--panel-2);
+  }
+  .drop p { margin: 0; color: var(--muted); }
+  .drop strong { color: var(--text); display: block; margin-bottom: 6px; font-size: 16px; }
+  input[type="file"] { display: none; }
+  .toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 20px 0 12px;
+    flex-wrap: wrap;
+  }
+  .toolbar .spacer { flex: 1; }
+  button {
+    background: var(--accent);
+    color: #0b1220;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  button:hover { background: var(--accent-2); }
+  button.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button.secondary:hover { background: var(--panel-2); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .item {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+  }
+  .thumb {
+    width: 56px; height: 56px;
+    border-radius: 6px;
+    background: #0b1220;
+    object-fit: cover;
+  }
+  .info { min-width: 0; }
+  .name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .meta .ok { color: var(--ok); }
+  .meta .warn { color: var(--warn); }
+  .meta .err { color: var(--err); }
+  .actions { display: flex; gap: 6px; align-items: center; }
+  .status-pill {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    color: var(--muted);
+  }
+  .status-pill.done { background: rgba(34,197,94,0.15); color: var(--ok); }
+  .status-pill.err { background: rgba(239,68,68,0.15); color: var(--err); }
+  .status-pill.working { background: rgba(56,189,248,0.15); color: var(--accent); }
+  .footer { color: var(--muted); font-size: 12px; margin-top: 24px; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Convertisseur PNG / JPEG → WebP</h1>
+    <p class="subtitle">100% local — aucune image n'est envoyée à l'extérieur. Objectif : ≤ 115 Ko, qualité maximale.</p>
+
+    <label class="drop" id="drop">
+      <strong>Glissez-déposez vos images ici</strong>
+      <p>ou cliquez pour les sélectionner (PNG, JPG, JPEG — sélection multiple)</p>
+      <input type="file" id="file" accept="image/png,image/jpeg" multiple>
+    </label>
+
+    <div class="toolbar">
+      <button id="convertBtn" disabled>Convertir</button>
+      <button id="downloadAllBtn" class="secondary" disabled>Tout télécharger</button>
+      <button id="clearBtn" class="secondary" disabled>Vider la liste</button>
+      <span class="spacer"></span>
+      <span class="status-pill" id="globalStatus">En attente</span>
+    </div>
+
+    <div class="list" id="list"></div>
+
+    <p class="footer">Limite cible : 115 Ko par image. Si l'image est trop grande, sa résolution est réduite progressivement jusqu'à respecter la limite.</p>
+  </div>
+
+<script>
+(() => {
+  const MAX_BYTES = 115 * 1024;
+  const dropEl = document.getElementById('drop');
+  const fileEl = document.getElementById('file');
+  const listEl = document.getElementById('list');
+  const convertBtn = document.getElementById('convertBtn');
+  const downloadAllBtn = document.getElementById('downloadAllBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const globalStatus = document.getElementById('globalStatus');
+
+  const items = [];
+
+  // ---------- Drag & drop ----------
+  ['dragenter', 'dragover'].forEach(ev =>
+    dropEl.addEventListener(ev, e => {
+      e.preventDefault();
+      dropEl.classList.add('dragover');
+    })
+  );
+  ['dragleave', 'drop'].forEach(ev =>
+    dropEl.addEventListener(ev, e => {
+      e.preventDefault();
+      dropEl.classList.remove('dragover');
+    })
+  );
+  dropEl.addEventListener('drop', e => {
+    const files = [...(e.dataTransfer?.files || [])];
+    addFiles(files);
+  });
+  fileEl.addEventListener('change', () => {
+    addFiles([...fileEl.files]);
+    fileEl.value = '';
+  });
+
+  // ---------- File list ----------
+  function addFiles(files) {
+    const accepted = files.filter(f => /image\/(png|jpe?g)/i.test(f.type) || /\.(png|jpe?g)$/i.test(f.name));
+    for (const f of accepted) {
+      const id = crypto.randomUUID();
+      const item = {
+        id,
+        file: f,
+        baseName: stripExt(f.name),
+        originalSize: f.size,
+        status: 'pending', // pending | working | done | error
+        blob: null,
+        quality: null,
+        scale: 1,
+        message: '',
+      };
+      items.push(item);
+      renderItem(item);
+    }
+    updateButtons();
+  }
+
+  function stripExt(name) {
+    return name.replace(/\.(png|jpe?g)$/i, '');
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' o';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' Ko';
+    return (bytes / 1024 / 1024).toFixed(2) + ' Mo';
+  }
+
+  // ---------- Rendering ----------
+  function renderItem(item) {
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.id = 'item-' + item.id;
+
+    const img = document.createElement('img');
+    img.className = 'thumb';
+    img.alt = '';
+    const url = URL.createObjectURL(item.file);
+    img.src = url;
+    img.addEventListener('load', () => URL.revokeObjectURL(url));
+
+    const info = document.createElement('div');
+    info.className = 'info';
+    info.innerHTML = `
+      <div class="name">${escapeHtml(item.file.name)}</div>
+      <div class="meta" data-meta>${formatSize(item.originalSize)} → <em>en attente</em></div>
+    `;
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    actions.innerHTML = `
+      <span class="status-pill" data-pill>en attente</span>
+      <button class="secondary" data-download disabled>Télécharger</button>
+      <button class="secondary" data-remove>✕</button>
+    `;
+    actions.querySelector('[data-remove]').addEventListener('click', () => removeItem(item.id));
+    actions.querySelector('[data-download]').addEventListener('click', () => downloadItem(item));
+
+    el.append(img, info, actions);
+    listEl.appendChild(el);
+  }
+
+  function updateItem(item) {
+    const el = document.getElementById('item-' + item.id);
+    if (!el) return;
+    const meta = el.querySelector('[data-meta]');
+    const pill = el.querySelector('[data-pill]');
+    const dlBtn = el.querySelector('[data-download]');
+
+    pill.classList.remove('done', 'err', 'working');
+    if (item.status === 'pending') {
+      pill.textContent = 'en attente';
+      meta.innerHTML = `${formatSize(item.originalSize)} → <em>en attente</em>`;
+    } else if (item.status === 'working') {
+      pill.textContent = 'conversion…';
+      pill.classList.add('working');
+      meta.innerHTML = `${formatSize(item.originalSize)} → <em>conversion en cours…</em>`;
+    } else if (item.status === 'done') {
+      pill.textContent = 'OK';
+      pill.classList.add('done');
+      const sizeClass = item.blob.size <= MAX_BYTES ? 'ok' : 'warn';
+      const qInfo = item.quality !== null ? `q=${item.quality.toFixed(2)}` : '';
+      const sInfo = item.scale < 1 ? `, redim. ×${item.scale.toFixed(2)}` : '';
+      meta.innerHTML = `${formatSize(item.originalSize)} → <span class="${sizeClass}">${formatSize(item.blob.size)}</span> <span style="opacity:.7">(${qInfo}${sInfo})</span>`;
+      dlBtn.disabled = false;
+    } else if (item.status === 'error') {
+      pill.textContent = 'erreur';
+      pill.classList.add('err');
+      meta.innerHTML = `<span class="err">${escapeHtml(item.message || 'Erreur de conversion')}</span>`;
+    }
+  }
+
+  function removeItem(id) {
+    const idx = items.findIndex(i => i.id === id);
+    if (idx === -1) return;
+    items.splice(idx, 1);
+    document.getElementById('item-' + id)?.remove();
+    updateButtons();
+  }
+
+  function updateButtons() {
+    const hasPending = items.some(i => i.status === 'pending');
+    const hasDone = items.some(i => i.status === 'done');
+    convertBtn.disabled = !hasPending;
+    downloadAllBtn.disabled = !hasDone;
+    clearBtn.disabled = items.length === 0;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- Conversion ----------
+  async function loadImage(file) {
+    if (typeof createImageBitmap === 'function') {
+      try { return await createImageBitmap(file); } catch (_) {}
+    }
+    return await new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Impossible de charger l\'image')); };
+      img.src = url;
+    });
+  }
+
+  function drawToCanvas(bitmap, scale) {
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    return canvas;
+  }
+
+  function canvasToWebP(canvas, quality) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        b => b ? resolve(b) : reject(new Error('Encodage WebP échoué')),
+        'image/webp',
+        quality
+      );
+    });
+  }
+
+  // Binary search the highest quality that keeps blob size <= MAX_BYTES.
+  // Returns { blob, quality } or null if even quality=0 is too large.
+  async function findBestQuality(canvas) {
+    // Try max quality first — often already fits and we can stop.
+    const qMaxBlob = await canvasToWebP(canvas, 1);
+    if (qMaxBlob.size <= MAX_BYTES) return { blob: qMaxBlob, quality: 1 };
+
+    // Check min quality — if still too large, we need to downscale.
+    const qMinBlob = await canvasToWebP(canvas, 0);
+    if (qMinBlob.size > MAX_BYTES) return null;
+
+    // Binary search between 0 and 1.
+    let lo = 0, hi = 1;
+    let best = { blob: qMinBlob, quality: 0 };
+    for (let i = 0; i < 8; i++) {
+      const mid = (lo + hi) / 2;
+      const blob = await canvasToWebP(canvas, mid);
+      if (blob.size <= MAX_BYTES) {
+        best = { blob, quality: mid };
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return best;
+  }
+
+  async function convertOne(item) {
+    item.status = 'working';
+    updateItem(item);
+    try {
+      const bitmap = await loadImage(item.file);
+      let scale = 1;
+      let result = null;
+
+      // Try at full resolution first; if even q=0 is too big, downscale.
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const canvas = drawToCanvas(bitmap, scale);
+        result = await findBestQuality(canvas);
+        if (result) break;
+        scale *= 0.85; // shrink ~15% per attempt
+      }
+
+      if (!result) throw new Error('Image trop volumineuse même après redimensionnement');
+
+      item.blob = result.blob;
+      item.quality = result.quality;
+      item.scale = scale;
+      item.status = 'done';
+    } catch (err) {
+      item.status = 'error';
+      item.message = err.message || String(err);
+    }
+    updateItem(item);
+    updateButtons();
+  }
+
+  async function convertAll() {
+    convertBtn.disabled = true;
+    globalStatus.textContent = 'Conversion…';
+    globalStatus.className = 'status-pill working';
+    const pending = items.filter(i => i.status === 'pending');
+    for (const it of pending) {
+      await convertOne(it);
+    }
+    const errs = items.filter(i => i.status === 'error').length;
+    globalStatus.textContent = errs ? `Terminé (${errs} erreur${errs > 1 ? 's' : ''})` : 'Terminé';
+    globalStatus.className = 'status-pill ' + (errs ? 'err' : 'done');
+    updateButtons();
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function downloadItem(item) {
+    if (item.status !== 'done' || !item.blob) return;
+    downloadBlob(item.blob, item.baseName + '.webp');
+  }
+
+  async function downloadAll() {
+    const done = items.filter(i => i.status === 'done');
+    for (let i = 0; i < done.length; i++) {
+      downloadItem(done[i]);
+      // Small delay so the browser doesn't merge/cancel downloads.
+      await new Promise(r => setTimeout(r, 150));
+    }
+  }
+
+  function clearAll() {
+    items.length = 0;
+    listEl.innerHTML = '';
+    globalStatus.textContent = 'En attente';
+    globalStatus.className = 'status-pill';
+    updateButtons();
+  }
+
+  convertBtn.addEventListener('click', convertAll);
+  downloadAllBtn.addEventListener('click', downloadAll);
+  clearBtn.addEventListener('click', clearAll);
+})();
+</script>
+</body>
+</html>
