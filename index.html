@@ -961,17 +961,30 @@
   }
 
   async function findBestQuality(canvas) {
+    // Sans perte (q=1) d'abord — si ça rentre, on garde la meilleure qualité possible.
     const qMaxBlob = await canvasToWebP(canvas, 1);
     if (qMaxBlob.size <= MAX_BYTES) return { blob: qMaxBlob, quality: 1 };
-    const qMinBlob = await canvasToWebP(canvas, 0);
+
+    // Vérifier qu'au moins q=0.01 (lossy minimum) rentre.
+    const qMinBlob = await canvasToWebP(canvas, 0.01);
     if (qMinBlob.size > MAX_BYTES) return null;
-    let lo = 0, hi = 1;
-    let best = { blob: qMinBlob, quality: 0 };
-    for (let i = 0; i < 8; i++) {
+
+    // Recherche binaire dans [0.01, 0.999] — exclut q=1 (lossless) qui a un comportement à part.
+    let lo = 0.01, hi = 0.999;
+    let best = { blob: qMinBlob, quality: 0.01 };
+
+    // 18 itérations → précision ~4e-6, on s'approche au plus près du plafond.
+    for (let i = 0; i < 18; i++) {
       const mid = (lo + hi) / 2;
       const blob = await canvasToWebP(canvas, mid);
-      if (blob.size <= MAX_BYTES) { best = { blob, quality: mid }; lo = mid; }
-      else { hi = mid; }
+      if (blob.size <= MAX_BYTES) {
+        best = { blob, quality: mid };
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+      // Stop si on est à moins de 200 octets du plafond — plus la peine d'affiner.
+      if (best.blob.size >= MAX_BYTES - 200) break;
     }
     return best;
   }
